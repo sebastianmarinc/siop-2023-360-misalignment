@@ -154,7 +154,7 @@ p1+p2
 
 # visualization -----------------------------------------------------------
 
-
+## tx effects ----
 dat <- bind_rows(
   att_manager, lmer_manager,
   att_peer, lmer_peer, 
@@ -163,38 +163,44 @@ dat <- bind_rows(
   mtt(Source = c(rep("Manager", 60), rep("Peer", 60), rep("Direct Report", 60)), 
       Model = rep(c("Causal Forest", "Linear Regression"), 3, each = 30)) 
 
-
-
-#####
-dat <- bind_rows(ate_manager, ate_peer, ate_direct_report, 
-                 .id = "source") |> 
-  mtt(source = case_when(
-    source == 1 ~ "manager misalignment", 
-    source == 2 ~ "peer misalignment", 
-    source == 3 ~ "direct report misalignment"
-  )) #|> 
-
 dat |> 
-  mtt(construct = snakecase::to_title_case(construct)) |> 
+  ggplot() +
+  aes(estimate, fill = Model,) +
+  geom_density(alpha = .75, color = "black") +
+  facet_grid(~Source) + 
+  theme_classic() + 
+  theme(
+    text = element_text(size=15),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  ) + 
+  xlab("Estimated Treatment Effects") + 
+  scale_fill_brewer(palette = "Set1") + 
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) 
+
+ggsave('tx.png', dpi = 700, height = 4, width = 8)
+
+
+## top 5 tx effects estimated by causal forest -----
+dat |> 
+  mtt(construct = snakecase::to_title_case(construct)) |>
+  filter(Model == "Causal Forest") |> 
+  group_by(Source) |> 
+  slice_max(estimate, n = 5) |> 
   ggplot() + 
-  aes(construct, estimate, fill = sig) + 
-  geom_bar(stat = "identity") +
-  geom_linerange(aes(ymin = estimate - std.err, ymax = estimate + std.err)) +
+  aes(reorder(construct, estimate), estimate) + 
+  geom_point(stat = "identity", size = 3, color = "black") +
+  geom_linerange(aes(ymin = estimate - std_err, 
+                     ymax = estimate + std_err), size = 1) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 3)) + 
   coord_flip() + 
-  facet_wrap(~source)
+  theme_classic() + 
+  theme(text = element_text(size = 14)) + 
+  labs(
+    y = "Estimated Treatment Effects",
+    x = "Construct"
+  ) + 
+  facet_wrap(~Source, scales = "free_y")
 
-
-dat_order <- dat %>%
-  group_by(source) %>%
-  mutate(order_var = rank(estimate, ties.method = "min")) %>%
-  ungroup()
-
-# Step 2: Reorder factors based on the new ordering variable
-dat_order$construct <- with(dat_order, reorder(interaction(construct, source),  order_var))
-
-# Step 3: Create the plot with facet_wrap()
-ggplot(dat_order, aes(x = construct, y = estimate)) +
-  geom_bar(stat = "identity", fill = "lightblue") +
-  geom_linerange(aes(ymin = estimate - std.err, ymax = estimate + std.err)) +
-  coord_flip() +
-  facet_wrap(~ source, scales = "free_y")
+ggsave('tx-top5.png', dpi = 700, height = 4, width = 8)

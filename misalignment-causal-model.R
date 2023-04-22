@@ -76,7 +76,7 @@ ob_rp <- ob_rp |> arrange(member_id, construct_key, time)
 # drop unwanted dates
 ob_rp <- ob_rp |> inner_join(dates, by = "member_id")
 
-# filter the rows where submitted_at_date matches submitted_at_date_ob or submitted_at_date_rp
+# filter the rows where submitted_at_date matches ob or rp date
 ob_rp_filtered <- ob_rp |> 
   filter(submitted_at_date == submitted_at_date_ob | 
            submitted_at_date == submitted_at_date_rp)
@@ -99,8 +99,10 @@ ob_rp_filtered <- ob_rp_filtered |>
 # self report 
 glimpse(ts)
 ts_filtered <- ts |> 
-  select(x1_assessments_user_id, x1_assessments_assessment_id, x1_assessments_creator_id,
-         x2_assessment_item_responses_item_key, x2_assessment_item_responses_item_response)
+  select(x1_assessments_user_id, x1_assessments_assessment_id, 
+         x1_assessments_creator_id,
+         x2_assessment_item_responses_item_key, 
+         x2_assessment_item_responses_item_response)
 ts_filtered$role <- "self"
 
 ts_filtered <- ts_filtered |> 
@@ -400,7 +402,9 @@ did <- plm(
   model = "within"
 )
 
-lmtest::coeftest(did, vcov = function(x) {vcovHC(x, cluster = "group", type = "HC1")})
+lmtest::coeftest(did, vcov = function(x) {
+  vcovHC(x, cluster = "group", type = "HC1")
+})
 
 
 
